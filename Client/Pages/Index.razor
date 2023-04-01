@@ -1,4 +1,6 @@
 ﻿@page "/"
+@using BlazorApp.Shared
+@inject HttpClient Http
 
 <PageTitle>Index</PageTitle>
 
@@ -7,3 +9,29 @@
 Welcome to your new app.
 
 <SurveyPrompt Title="How is Blazor working for you?" />
+
+@if(apiResponse == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <p>@apiResponse</p>
+}
+
+@code {
+    private string? apiResponse = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var respons = await Http.GetFromJsonAsync<string>("/api/FileManagerFunction") ?? "no api response!";
+            apiResponse = respons;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.ToString());
+        }
+    }
+}

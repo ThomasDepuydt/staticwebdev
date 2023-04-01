@@ -1,5 +1,6 @@
 ﻿@page "/upload"
 @using BlazorApp.Shared 
+@using System.Net.Http.Headers;
 @inject HttpClient Http
 
 <h1>Upload Page</h1>
@@ -18,59 +19,46 @@
     </ul>
 }
 
-@if (forecasts == null)
-{
-    <p><em>Loading...</em></p>
-}
-else
-{
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Date</th>
-                <th>Temp. (C)</th>
-                <th>Temp. (F)</th>
-                <th>Summary</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var forecast in forecasts)
-            {
-                <tr>
-                    <td>@forecast.Date.ToShortDateString()</td>
-                    <td>@forecast.TemperatureC</td>
-                    <td>@forecast.TemperatureF</td>
-                    <td>@forecast.Summary</td>
-                </tr>
-            }
-        </tbody>
-    </table>
-}
-
 @code {
     private long maxFileSize = 1024 * 1024 * 1024 * 1; // 1 GB
     private int maxAllowedFiles = 20;
+    private List<string> fileNames = new();
     private List<string> errors = new();
     private WeatherForecast[] forecasts = new WeatherForecast[]{};
 
     protected async Task UploadFiles(InputFileChangeEventArgs e)
     {
-        //errors.Clear();
-        //if (e.FileCount > maxAllowedFiles)
-        //{
-        //    errors.Add($"Too many files selected. Maximum {maxAllowedFiles} files are allowed.");
-        //    return;
-        //}
+        errors.Clear();
+        if (e.FileCount > maxAllowedFiles)
+        {
+            errors.Add($"Too many files selected. Maximum {maxAllowedFiles} files are allowed.");
+            return;
+        }
 
-        //foreach (var file in e.GetMultipleFiles(maxAllowedFiles))
-        //{
-        //    if (file.Size > maxFileSize)
-        //    {
-        //        errors.Add($"File '{file.Name}' exceeds maximum allowed size of {maxFileSize/(1024 * 1024)} MB.");
-        //        continue;
-        //    }
+        using var content = new MultipartFormDataContent();
 
-        //    var response = Http.PostAsJsonAsync<InputFile>("/api/UploadFile", file);
+        foreach (var file in e.GetMultipleFiles(maxAllowedFiles))
+        {
+            if (file.Size > maxFileSize)
+            {
+                errors.Add($"File '{file.Name}' exceeds maximum allowed size of {maxFileSize/(1024 * 1024)} MB.");
+                continue;
+            }
+
+            var fileContent = new StreamContent(file.OpenReadStream(maxFileSize));
+            fileContent.Headers.ContentType = new MediaTypeHeaderValue(file.ContentType);
+
+            fileNames.Add(file.Name);
+
+            content.Add(fileContent, "\"files\"", file.Name);
+
+            var response = await Http.PostAsync("/api/UploadFunction", content);
+
+            if (response.IsSuccessStatusCode)
+            {
+                string test = "Joepi!";
+            }
+            //    var response = Http.PostAsJsonAsync<InputFile>("/api/UploadFile", file);
 
         //    //Prepare the content for the request
         //    var content = new MultipartFormDataContent();
@@ -84,7 +72,7 @@ else
         //    await file.OpenReadStream().CopyToAsync(ms);
         //    var buffer = ms.ToArray();
         //    Console.WriteLine($"File name '{file.Name}', length {buffer.Length} bytes");
-        //}
+        }
     }
 
     protected override async Task OnInitializedAsync()
